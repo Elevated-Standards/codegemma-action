@@ -2,6 +2,27 @@
 
 set -e
 
+# Start the Ollama service in the background
+echo "Starting the Ollama service..."
+nohup ollama serve > /tmp/ollama.log 2>&1 &
+
+# Wait for the service to be ready
+echo "Waiting for the Ollama service to be ready..."
+for i in {1..10}; do
+  if curl -s http://localhost:11434/v1/models > /dev/null; then
+    echo "Ollama service is ready."
+    break
+  fi
+  echo "Retrying... ($i/10)"
+  sleep 2
+done
+
+# Fail if the service is not ready
+if ! curl -s http://localhost:11434/v1/models > /dev/null; then
+  echo "Ollama service failed to start."
+  exit 1
+fi
+
 # Ensure the required model is available
 echo "Pulling the required model qwen2.5-coder:7b..."
 ollama pull qwen2.5-coder:7b || { echo "Failed to pull model qwen2.5-coder:7b"; exit 1; }

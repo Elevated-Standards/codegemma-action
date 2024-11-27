@@ -8,13 +8,13 @@ nohup ollama serve > /tmp/ollama.log 2>&1 &
 
 # Wait for the service to be ready
 echo "Waiting for the Ollama service to be ready..."
-for i in {1..10}; do
+for i in {1..5}; do
   if curl -s http://localhost:11434/v1/models > /dev/null; then
     echo "Ollama service is ready."
     break
   fi
-  echo "Retrying... ($i/10)"
-  sleep 2
+  echo "Retrying... ($i/5)"
+  sleep 1
 done
 
 # Fail if the service is not ready
@@ -45,23 +45,32 @@ fi
 # Split CHANGED_FILES into individual files
 IFS=' ' read -r -a FILES <<< "$CHANGED_FILES"
 
-RESULTS=""
+# Prepare for parallel processing
+TMP_RESULTS="/tmp/results.txt"
+rm -f "$TMP_RESULTS"
+touch "$TMP_RESULTS"
+
+# Process files in parallel
 for FILE in "${FILES[@]}"; do
-  echo "Analyzing $FILE..."
-  if [ -f "$FILE" ]; then
-    # Read the file's content
-    FILE_CONTENT=$(cat "$FILE")
-
-    # Construct the full prompt for the model
-    PROMPT="Please review this code and provide detailed recommendations for improvement.\n\n$FILE_CONTENT"
-
-    # Run the model with the prompt
-    OUTPUT=$(ollama run qwen2.5-coder:7b "$PROMPT" || echo "Error processing $FILE")
-    RESULTS="$RESULTS\n### Recommendations for $FILE\n$OUTPUT\n"
-  else
-    echo "File $FILE does not exist. Skipping."
-  fi
+  {
+    echo "Analyzing $FILE..."
+    if [ -f "$FILE" ]; then
+      FILE_CONTENT=$(cat "$FILE")
+      PROMPT="Please review this code and provide detailed recommendations for improvement.\n\n$FILE_CONTENT"
+      OUTPUT=$(ollama run qwen2.5-coder:7b "$PROMPT" || echo "Error processing $FILE")
+      echo -e "### Recommendations for $FILE\n$OUTPUT\n" >> "$TMP_RESULTS"
+    else
+      echo "File $FILE does not exist. Skipping."
+    fi
+  } &
 done
+
+# Wait for all parallel jobs to complete
+wait
+
+# Combine results
+RESULTS=$(cat "$TMP_RESULTS")
+rm -f "$TMP_RESULTS"
 
 # Debug results
 echo "Generated recommendations:"

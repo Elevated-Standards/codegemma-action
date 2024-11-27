@@ -17,9 +17,12 @@ if [ -z "$CHANGED_FILES" ]; then
   exit 0
 fi
 
+# Split CHANGED_FILES into individual files
+IFS=' ' read -r -a FILES <<< "$CHANGED_FILES"
+
 # Analyze files with Ollama CodeGemma
 RESULTS=""
-while IFS= read -r FILE; do
+for FILE in "${FILES[@]}"; do
   echo "Analyzing $FILE..."
   if [ -f "$FILE" ]; then
     # Generate a specific prompt for the file
@@ -31,7 +34,7 @@ while IFS= read -r FILE; do
   else
     echo "File $FILE does not exist. Skipping."
   fi
-done <<< "$CHANGED_FILES"
+done
 
 # Debug results
 echo "Generated recommendations:"

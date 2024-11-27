@@ -1,15 +1,17 @@
-FROM ubuntu:20.04
+FROM alpine:3.18
 
 # Install dependencies
-RUN apt-get update && apt-get install -y \
-  curl git jq
+RUN apk add --no-cache curl git jq bash
 
 # Install Ollama CLI
 RUN curl -fsSL https://ollama.ai/install.sh | bash
 
-# Copy the entrypoint script
-COPY entrypoint.sh /entrypoint.sh
+# Pre-pull the required model
+RUN ollama pull codegemma
 
-# Set permissions and entrypoint
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# Set entrypoint
 ENTRYPOINT ["/entrypoint.sh"]

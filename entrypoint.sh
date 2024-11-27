@@ -2,6 +2,10 @@
 
 set -e
 
+# Ensure the required model is available
+echo "Pulling the required model qwen2.5-coder:7b..."
+ollama pull qwen2.5-coder:7b || { echo "Failed to pull model qwen2.5-coder:7b"; exit 1; }
+
 # Get inputs
 GITHUB_TOKEN=$1
 CHANGED_FILES=$2

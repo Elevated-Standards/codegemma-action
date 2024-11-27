@@ -12,11 +12,15 @@ A GitHub Action that runs the [Ollama CodeGemma](https://ollama.ai) model on fil
 Add the following to your workflow file (e.g., `.github/workflows/ollama-codegemma.yml`):
 
 ```yaml
-name: Ollama CodeGemma
+name: Code Review
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   analyze:
@@ -24,11 +28,20 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Get changed files
+      id: get_diff
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} || ${{ secrets.CODEGEMMA }}
+      uses: tj-actions/changed-files@v36
 
     - name: Run Ollama CodeGemma
-      uses: codegemma-action/codegemma-action@main
+      uses: Elevated-Standards/codegemma-action@main
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }} || ${{ secrets.CODEGEMMA }}
+        changed_files: ${{ steps.get_diff.outputs.all_changed_and_modified_files }}
 ```
 
 ## Inputs

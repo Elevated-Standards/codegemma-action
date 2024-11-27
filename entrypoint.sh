@@ -2,6 +2,12 @@
 
 set -e
 
+# Ensure we are in a valid Git repository
+if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+  echo "Error: Not a Git repository."
+  exit 1
+fi
+
 # Get inputs
 GITHUB_TOKEN=$1
 GITHUB_REPOSITORY=$(jq -r '.repository.full_name' < "${GITHUB_EVENT_PATH}")
@@ -10,6 +16,10 @@ PR_URL=$(jq -r '.pull_request.html_url' < "${GITHUB_EVENT_PATH}")
 
 # Get changed files in the PR
 CHANGED_FILES=$(git diff --name-only "${GITHUB_SHA}"^)
+if [ -z "$CHANGED_FILES" ]; then
+  echo "No changed files detected."
+  exit 0
+fi
 
 # Analyze files with Ollama CodeGemma
 RESULTS=""

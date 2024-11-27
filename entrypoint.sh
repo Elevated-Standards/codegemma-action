@@ -2,13 +2,6 @@
 
 set -e
 
-# Debugging information
-echo "Current working directory: $(pwd)"
-echo "Contents of workspace:"
-ls -al
-
-set -e
-
 # Get inputs
 GITHUB_TOKEN=$1
 CHANGED_FILES=$2
@@ -36,29 +29,58 @@ while IFS= read -r FILE; do
   fi
 done <<< "$CHANGED_FILES"
 
+# Debug results
+echo "Generated recommendations:"
+echo "$RESULTS"
+
 # Exit if no results
 if [ -z "$RESULTS" ]; then
-  echo "No recommendations generated."
+  echo "No recommendations generated. Skipping issue/comment creation."
   exit 0
 fi
 
-# Create a GitHub issue with recommendations
-ISSUE_TITLE="Ollama CodeGemma Recommendations"
-ISSUE_BODY="## Recommendations\n\n${RESULTS}"
+# Check if running in a pull request context
+PR_NUMBER=$(jq -r '.pull_request.number' < "${GITHUB_EVENT_PATH}")
 
-EXISTING_ISSUE=$(curl -s \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues" | \
-  jq -r ".[] | select(.title == \"$ISSUE_TITLE\") | .number")
+if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
+  echo "Pull request detected. Adding a comment to PR #${PR_NUMBER}."
 
-if [ -z "$EXISTING_ISSUE" ]; then
-  curl -s -X POST \
+  COMMENT_BODY="## Ollama CodeGemma Recommendations\n\n${RESULTS}"
+
+  # Post comment to the pull request
+  RESPONSE=$(curl -s -X POST \
+    -H "Authorization: token ${GITHUB_TOKEN}" \
+    -H "Accept: application/vnd.github+json" \
+    -d "$(jq -n --arg body "$COMMENT_BODY" '{body: $body}')" \
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments")
+
+  COMMENT_URL=$(echo "$RESPONSE" | jq -r '.html_url')
+
+  if [ "$COMMENT_URL" == "null" ]; then
+    echo "Error adding comment to pull request: $RESPONSE"
+    exit 1
+  fi
+
+  echo "Comment added to pull request: $COMMENT_URL"
+else
+  echo "No pull request detected. Creating a GitHub issue."
+
+  # Create GitHub issue
+  ISSUE_TITLE="Ollama CodeGemma Recommendations"
+  ISSUE_BODY="## Recommendations\n\n${RESULTS}"
+
+  RESPONSE=$(curl -s -X POST \
     -H "Authorization: token ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
     -d "$(jq -n --arg title "$ISSUE_TITLE" --arg body "$ISSUE_BODY" '{title: $title, body: $body, labels: ["ollama-codegemma"]}')" \
-    "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues"
-  echo "Created new issue: $ISSUE_TITLE"
-else
-  echo "Issue already exists: $EXISTING_ISSUE"
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues")
+
+  ISSUE_URL=$(echo "$RESPONSE" | jq -r '.html_url')
+
+  if [ "$ISSUE_URL" == "null" ]; then
+    echo "Error creating issue: $RESPONSE"
+    exit 1
+  fi
+
+  echo "Created issue: $ISSUE_URL"
 fi

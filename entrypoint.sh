@@ -20,14 +20,13 @@ GITHUB_REPOSITORY=$(jq -r '.repository.full_name' < "${GITHUB_EVENT_PATH}")
 PR_NUMBER=$(jq -r '.pull_request.number' < "${GITHUB_EVENT_PATH}")
 PR_URL=$(jq -r '.pull_request.html_url' < "${GITHUB_EVENT_PATH}")
 
-# Get changed files in the PR
-CHANGED_FILES=$(git diff --name-only "${GITHUB_SHA}"^)
+CHANGED_FILES=$2
 if [ -z "$CHANGED_FILES" ]; then
-  echo "No changed files detected."
+  echo "No changed files provided."
   exit 0
 fi
 
-# Analyze files with Ollama CodeGemma
+# Iterate over the list of changed files
 RESULTS=""
 for FILE in $CHANGED_FILES; do
   echo "Analyzing $FILE..."

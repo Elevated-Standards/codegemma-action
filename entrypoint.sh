@@ -2,9 +2,9 @@
 
 set -e
 
+# Get inputs
 GITHUB_TOKEN=$1
-REPO_OWNER=$(jq -r '.repository.owner.login' < "${GITHUB_EVENT_PATH}")
-REPO_NAME=$(jq -r '.repository.name' < "${GITHUB_EVENT_PATH}")
+GITHUB_REPOSITORY=$(jq -r '.repository.full_name' < "${GITHUB_EVENT_PATH}")
 PR_NUMBER=$(jq -r '.pull_request.number' < "${GITHUB_EVENT_PATH}")
 PR_URL=$(jq -r '.pull_request.html_url' < "${GITHUB_EVENT_PATH}")
 
@@ -26,7 +26,7 @@ ISSUE_BODY="## Recommendations\n\n${RESULTS}\n\n### Pull Request Link\n[View Pul
 EXISTING_ISSUE=$(curl -s \
   -H "Authorization: token ${GITHUB_TOKEN}" \
   -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues" | \
+  "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues" | \
   jq -r ".[] | select(.title == \"$ISSUE_TITLE\") | .number")
 
 if [ -z "$EXISTING_ISSUE" ]; then
@@ -34,10 +34,8 @@ if [ -z "$EXISTING_ISSUE" ]; then
     -H "Authorization: token ${GITHUB_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
     -d "$(jq -n --arg title "$ISSUE_TITLE" --arg body "$ISSUE_BODY" '{title: $title, body: $body, labels: ["ollama-codegemma"]}')" \
-    "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/issues"
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues"
   echo "Created new issue: $ISSUE_TITLE"
 else
   echo "Issue already exists: $EXISTING_ISSUE"
 fi
-
-

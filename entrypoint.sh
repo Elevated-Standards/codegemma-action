@@ -45,28 +45,55 @@ fi
 # Split CHANGED_FILES into individual files
 IFS=' ' read -r -a FILES <<< "$CHANGED_FILES"
 
-# Prepare for parallel processing
+# Set the chunk size (number of files to process in parallel)
+CHUNK_SIZE=5
+
+# Temporary file to store results
 TMP_RESULTS="/tmp/results.txt"
 rm -f "$TMP_RESULTS"
 touch "$TMP_RESULTS"
 
-# Process files in parallel
+# Process files in chunks
+FILES_BATCH=()
 for FILE in "${FILES[@]}"; do
-  {
-    echo "Analyzing $FILE..."
-    if [ -f "$FILE" ]; then
-      FILE_CONTENT=$(cat "$FILE")
-      PROMPT="Review this code, provide suggestions for improvement, coding best practices, improve readability, and maintainability. Remove any code smells and anti-patterns. Provide code examples for your suggestion.\n\n$FILE_CONTENT"
-      OUTPUT=$(ollama run qwen2.5-coder:7b "$PROMPT" || echo "Error processing $FILE")
-      echo -e "### Recommendations for $FILE\n$OUTPUT\n" >> "$TMP_RESULTS"
-    else
-      echo "File $FILE does not exist. Skipping."
-    fi
-  } &
+  FILES_BATCH+=("$FILE")
+  if [ "${#FILES_BATCH[@]}" -eq "$CHUNK_SIZE" ]; then
+    # Process the current batch in parallel
+    for BATCH_FILE in "${FILES_BATCH[@]}"; do
+      {
+        echo "Analyzing $BATCH_FILE..."
+        if [ -f "$BATCH_FILE" ]; then
+          FILE_CONTENT=$(cat "$BATCH_FILE")
+          PROMPT="Review this code, provide suggestions for improvement, coding best practices, improve readability, and maintainability. Remove any code smells and anti-patterns. Provide code examples for your suggestion.\n\n$FILE_CONTENT"
+          OUTPUT=$(ollama run qwen2.5-coder:7b "$PROMPT" || echo "Error processing $BATCH_FILE")
+          echo -e "### Recommendations for $BATCH_FILE\n$OUTPUT\n" >> "$TMP_RESULTS"
+        else
+          echo "File $BATCH_FILE does not exist. Skipping."
+        fi
+      } &
+    done
+    wait
+    FILES_BATCH=() # Reset the batch
+  fi
 done
 
-# Wait for all parallel jobs to complete
-wait
+# Process remaining files in the batch
+if [ "${#FILES_BATCH[@]}" -gt 0 ]; then
+  for BATCH_FILE in "${FILES_BATCH[@]}"; do
+    {
+      echo "Analyzing $BATCH_FILE..."
+      if [ -f "$BATCH_FILE" ]; then
+        FILE_CONTENT=$(cat "$BATCH_FILE")
+        PROMPT="Review this code, provide suggestions for improvement, coding best practices, improve readability, and maintainability. Remove any code smells and anti-patterns. Provide code examples for your suggestion.\n\n$FILE_CONTENT"
+        OUTPUT=$(ollama run qwen2.5-coder:7b "$PROMPT" || echo "Error processing $BATCH_FILE")
+        echo -e "### Recommendations for $BATCH_FILE\n$OUTPUT\n" >> "$TMP_RESULTS"
+      else
+        echo "File $BATCH_FILE does not exist. Skipping."
+      fi
+    } &
+  done
+  wait
+fi
 
 # Combine results
 RESULTS=$(cat "$TMP_RESULTS")

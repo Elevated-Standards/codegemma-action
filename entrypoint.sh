@@ -2,9 +2,9 @@
 
 set -e
 
-# Ensure we are in a valid Git repository
-if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-  echo "Error: Not a Git repository."
+# Ensure the working directory is a Git repository
+if [ ! -d ".git" ]; then
+  echo "Error: Not a Git repository. Please ensure the repository is mounted correctly."
   exit 1
 fi
 

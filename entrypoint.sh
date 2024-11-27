@@ -2,39 +2,59 @@
 
 set -e
 
-# Ensure the working directory is a Git repository
-if [ ! -d ".git" ]; then
-  echo "Repository is not a valid Git repository. Initializing..."
-  git init
-  git remote add origin https://github.com/${GITHUB_REPOSITORY}.git
-  git fetch --depth=1 origin ${GITHUB_REF}
-  git checkout ${GITHUB_SHA}
-  echo "Git repository initialized successfully."
-else
-  echo "Git repository already exists."
-fi
+# Debugging information
+echo "Current working directory: $(pwd)"
+echo "Contents of workspace:"
+ls -al
 
 # Get inputs
 GITHUB_TOKEN=$1
-GITHUB_REPOSITORY=$(jq -r '.repository.full_name' < "${GITHUB_EVENT_PATH}")
-PR_NUMBER=$(jq -r '.pull_request.number' < "${GITHUB_EVENT_PATH}")
-PR_URL=$(jq -r '.pull_request.html_url' < "${GITHUB_EVENT_PATH}")
-
 CHANGED_FILES=$2
+
+# Validate inputs
+if [ -z "$GITHUB_TOKEN" ]; then
+  echo "Error: GITHUB_TOKEN is not set."
+  exit 1
+fi
+
 if [ -z "$CHANGED_FILES" ]; then
   echo "No changed files provided."
   exit 0
 fi
 
-# Iterate over the list of changed files
+# Ensure the working directory is a Git repository
+if [ ! -d ".git" ]; then
+  echo "Repository is not a valid Git repository. Initializing..."
+  git init
+  git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+  git fetch --depth=1 origin "${GITHUB_REF}"
+  git checkout "${GITHUB_SHA}"
+  echo "Git repository initialized successfully."
+else
+  echo "Git repository already exists."
+fi
+
+# Analyze files with Ollama CodeGemma
 RESULTS=""
-for FILE in $CHANGED_FILES; do
+while IFS= read -r FILE; do
   echo "Analyzing $FILE..."
-  OUTPUT=$(ollama codegemma --file "$FILE" || echo "Error processing $FILE")
-  RESULTS="$RESULTS\n### Recommendations for $FILE\n$OUTPUT\n"
-done
+  if [ -f "$FILE" ]; then
+    OUTPUT=$(ollama codegemma --file "$FILE" || echo "Error processing $FILE")
+    RESULTS="$RESULTS\n### Recommendations for $FILE\n$OUTPUT\n"
+  else
+    echo "File $FILE does not exist. Skipping."
+  fi
+done <<< "$CHANGED_FILES"
+
+# Exit if no results
+if [ -z "$RESULTS" ]; then
+  echo "No recommendations generated."
+  exit 0
+fi
 
 # Create a GitHub issue with recommendations
+PR_NUMBER=$(jq -r '.pull_request.number' < "${GITHUB_EVENT_PATH}")
+PR_URL=$(jq -r '.pull_request.html_url' < "${GITHUB_EVENT_PATH}")
 ISSUE_TITLE="Ollama CodeGemma Recommendations for PR #${PR_NUMBER}"
 ISSUE_BODY="## Recommendations\n\n${RESULTS}\n\n### Pull Request Link\n[View Pull Request](${PR_URL})"
 

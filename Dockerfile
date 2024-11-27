@@ -10,7 +10,7 @@ RUN curl -fsSL https://ollama.ai/install.sh | bash
 RUN nohup ollama serve &
 
 # Pre-pull the required model
-RUN ollama pull qwen2.5-coder:7b
+# RUN ollama pull qwen2.5-coder:7b
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh

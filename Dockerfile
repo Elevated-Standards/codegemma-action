@@ -1,7 +1,7 @@
-FROM alpine:3.18
+FROM debian:bullseye-slim
 
 # Install dependencies
-RUN apk add --no-cache curl git jq bash
+RUN apt-get update && apt-get install -y curl git jq bash
 
 # Install Ollama CLI
 RUN curl -fsSL https://ollama.ai/install.sh | bash

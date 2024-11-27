@@ -31,7 +31,7 @@ done <<< "$CHANGED_FILES"
 
 # Debug results
 echo "Generated recommendations:"
-echo "$RESULTS"
+printf "%b\n" "$RESULTS"
 
 # Exit if no results
 if [ -z "$RESULTS" ]; then
@@ -56,7 +56,7 @@ if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
 
   COMMENT_URL=$(echo "$RESPONSE" | jq -r '.html_url')
 
-  if [ "$COMMENT_URL" == "null" ]; then
+  if [ "$COMMENT_URL" = "null" ]; then
     echo "Error adding comment to pull request: $RESPONSE"
     exit 1
   fi
@@ -77,7 +77,7 @@ else
 
   ISSUE_URL=$(echo "$RESPONSE" | jq -r '.html_url')
 
-  if [ "$ISSUE_URL" == "null" ]; then
+  if [ "$ISSUE_URL" = "null" ]; then
     echo "Error creating issue: $RESPONSE"
     exit 1
   fi

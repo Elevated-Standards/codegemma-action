@@ -7,6 +7,8 @@ echo "Current working directory: $(pwd)"
 echo "Contents of workspace:"
 ls -al
 
+set -e
+
 # Get inputs
 GITHUB_TOKEN=$1
 CHANGED_FILES=$2
@@ -20,18 +22,6 @@ fi
 if [ -z "$CHANGED_FILES" ]; then
   echo "No changed files provided."
   exit 0
-fi
-
-# Ensure the working directory is a Git repository
-if [ ! -d ".git" ]; then
-  echo "Repository is not a valid Git repository. Initializing..."
-  git init
-  git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-  git fetch --depth=1 origin "${GITHUB_REF}"
-  git checkout "${GITHUB_SHA}"
-  echo "Git repository initialized successfully."
-else
-  echo "Git repository already exists."
 fi
 
 # Analyze files with Ollama CodeGemma
@@ -53,10 +43,8 @@ if [ -z "$RESULTS" ]; then
 fi
 
 # Create a GitHub issue with recommendations
-PR_NUMBER=$(jq -r '.pull_request.number' < "${GITHUB_EVENT_PATH}")
-PR_URL=$(jq -r '.pull_request.html_url' < "${GITHUB_EVENT_PATH}")
-ISSUE_TITLE="Ollama CodeGemma Recommendations for PR #${PR_NUMBER}"
-ISSUE_BODY="## Recommendations\n\n${RESULTS}\n\n### Pull Request Link\n[View Pull Request](${PR_URL})"
+ISSUE_TITLE="Ollama CodeGemma Recommendations"
+ISSUE_BODY="## Recommendations\n\n${RESULTS}"
 
 EXISTING_ISSUE=$(curl -s \
   -H "Authorization: token ${GITHUB_TOKEN}" \

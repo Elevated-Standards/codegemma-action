@@ -22,7 +22,11 @@ RESULTS=""
 while IFS= read -r FILE; do
   echo "Analyzing $FILE..."
   if [ -f "$FILE" ]; then
-    OUTPUT=$(ollama codegemma --file "$FILE" || echo "Error processing $FILE")
+    # Generate a specific prompt for the file
+    PROMPT="Please review the file $FILE and provide detailed recommendations for improvement."
+
+    # Run CodeGemma with the prompt
+    OUTPUT=$(ollama codegemma --prompt "$PROMPT" --file "$FILE" || echo "Error processing $FILE")
     RESULTS="$RESULTS\n### Recommendations for $FILE\n$OUTPUT\n"
   else
     echo "File $FILE does not exist. Skipping."
@@ -31,7 +35,7 @@ done <<< "$CHANGED_FILES"
 
 # Debug results
 echo "Generated recommendations:"
-echo "$RESULTS"
+echo -e "$RESULTS"
 
 # Exit if no results
 if [ -z "$RESULTS" ]; then

@@ -20,16 +20,18 @@ fi
 # Split CHANGED_FILES into individual files
 IFS=' ' read -r -a FILES <<< "$CHANGED_FILES"
 
-# Analyze files with Ollama CodeGemma
 RESULTS=""
 for FILE in "${FILES[@]}"; do
   echo "Analyzing $FILE..."
   if [ -f "$FILE" ]; then
-    # Generate a specific prompt for the file
-    PROMPT="Please review the file $FILE and provide detailed recommendations for improvement."
+    # Read the file's content
+    FILE_CONTENT=$(cat "$FILE")
 
-    # Run CodeGemma with the prompt
-    OUTPUT=$(ollama codegemma --prompt "$PROMPT" --file "$FILE" || echo "Error processing $FILE")
+    # Construct the full prompt for the model
+    PROMPT="Please review this code and provide detailed recommendations for improvement.\n\n$FILE_CONTENT"
+
+    # Run the model with the prompt
+    OUTPUT=$(ollama run qwen2.5-coder:7b "$PROMPT" || echo "Error processing $FILE")
     RESULTS="$RESULTS\n### Recommendations for $FILE\n$OUTPUT\n"
   else
     echo "File $FILE does not exist. Skipping."

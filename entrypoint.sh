@@ -4,8 +4,14 @@ set -e
 
 # Ensure the working directory is a Git repository
 if [ ! -d ".git" ]; then
-  echo "Error: Not a Git repository. Please ensure the repository is mounted correctly."
-  exit 1
+  echo "Repository is not a valid Git repository. Initializing..."
+  git init
+  git remote add origin https://github.com/${GITHUB_REPOSITORY}.git
+  git fetch --depth=1 origin ${GITHUB_REF}
+  git checkout ${GITHUB_SHA}
+  echo "Git repository initialized successfully."
+else
+  echo "Git repository already exists."
 fi
 
 # Get inputs
